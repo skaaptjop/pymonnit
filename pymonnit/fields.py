@@ -9,15 +9,6 @@ class StringField(BaseField):
         self.min_length = min_length
         super(StringField, self).__init__(**kwargs)
 
-    def to_python(self, value):
-        if isinstance(value, unicode):
-            return value
-        try:
-            value = value.decode('utf-8')
-        except:
-            pass
-        return value
-
     def validate(self, value):
         if not isinstance(value, basestring):
             self.error('StringField only accepts string values')
@@ -30,3 +21,30 @@ class StringField(BaseField):
 
         if self.regex is not None and self.regex.match(value) is None:
             self.error('String value did not match validation regex')
+
+        super(StringField, self).validate(value)
+
+
+class IntField(BaseField):
+    def __init__(self, min_value=None, max_value=None, **kwargs):
+        self.min_value, self.max_value = min_value, max_value
+        super(IntField, self).__init__(**kwargs)
+
+    def validate(self, value):
+        try:
+            value = int(value)
+        except:
+            self.error('%s could not be converted to int' % value)
+
+        if self.min_value is not None and value < self.min_value:
+            self.error('Integer value is too small')
+
+        if self.max_value is not None and value > self.max_value:
+            self.error('Integer value is too large')
+
+        super(IntField, self).validate(value)
+
+
+class IDField(IntField):
+    def __init__(self, **kwargs):
+        super(IDField, self).__init__(min_value=0, required=False, **kwargs)

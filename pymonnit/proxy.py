@@ -66,28 +66,7 @@ class MonnitProxy(object):
 
 
 
+    def query(self, query):
+        pass
 
 
-
-# class Monnit(MonnitBase):
-#
-#     def get_sensor_data(self, sensor_id, start, end):
-#         ret = []
-#         for i in self.iter_sensor_data(sensor_id, start, end):
-#             ret.append(i)
-#         return ret
-#
-#
-#     def iter_sensor_data(self, sensor_id, start, end):
-#         params = {"fromDate":start, "toDate":end, "sensorID":sensor_id}
-#         r = self._call_api("SensorDataMessages", params=params)
-#         xml = MonnitXML(r.content)
-#
-#         for msg_data in xml.root.iter("APIDataMessage"):
-#             dt = datetime.strptime(msg_data.get("MessageDate"), self.datetime_format)
-#             yield (msg_data.get("PlotValue"), dt)
-#
-#
-#
-#
-#

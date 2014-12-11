@@ -15,17 +15,19 @@ class BaseField(object):
     #name of the field that this descripter gets assigned to
     name = None
 
-    def __init__(self, api_name=None, default=None, validation=None, required=False):
+    def __init__(self, xml_attribute=None, default=None, validation=None, required=False, key=False):
         """
         Constructor
-        :param api_name: (optional) name of the API field in the XML structure
+        :param xml_attribute: (optional) name of the API field in the XML structure
         :param default: default value (may be callable)
         :param validation: custom validation
+        :param key: is this the remote identifier
         """
-        self.api_name = api_name
+        self.xml_attribute = xml_attribute
         self._default = default
         self.required = required
         self._custom_validation = validation
+        self.is_key = key
 
         self.creation_counter = BaseField.creation_counter
         BaseField.creation_counter += 1
@@ -59,29 +61,17 @@ class BaseField(object):
         if instance is not None:
             instance._data[self.name] = value if value is not None else self.default
 
-    def to_python(self, value):
-        """
-        Convert an xml tag to a python value
-        :param value: xml tag
-        """
-        return value
-
-    def to_xml_tag(self, value):
-        """
-        Convert a python value to a xml tag
-        :param value: python value
-        """
-        return value
-
     def error(self, message="", errors=None, field_name=None):
         """Raises a ValidationError.
         """
         field_name = field_name if field_name else self.name
         raise ValidationError(message, errors=errors, field_name=field_name)
 
-    def _validate(self, value):
+    def validate(self, value):
         """
-        Validation fired by the entity. Triggers custom validation function and custom field validate() methods
+        Validate the field for the given value. Triggers custom validation supplied on init
+        Override this for custom field specific validation functions
+        :param value: value to validate
         """
         # check validation argument
         if self._custom_validation is not None:
@@ -90,14 +80,6 @@ class BaseField(object):
                     self.error('Value does not match custom validation method')
             else:
                 raise ValueError('validation argument for "%s" must be a callable.' % self.name)
-
-        return self.validate(value)
-
-    def validate(self, value):
-        """
-        Override this for custom field specific validation functions
-        """
-        pass
 
 
 class EntityMetaClass(type):
@@ -118,33 +100,41 @@ class EntityMetaClass(type):
             return super(EntityMetaClass, cls).__new__(cls, name, bases, attrs)
 
         fields = OrderedDict()
-        field_name_to_api_name = {}
-        api_name_to_field_name = {}
+        field_name_to_xml_attribute = {}
+        xml_attribute_to_field_name = {}
         api_fields_counter = Counter()
 
         #we need to sort the attrs that are BaseField derived by creation counter
         field_attrs = filter(lambda attr_item: isinstance(attr_item[1], BaseField), attrs.iteritems())
         ordered_field_attrs = sorted((fo.creation_counter, fn, fo) for fn, fo in field_attrs)
 
+        attrs["_key_field"] = None
+
         for _, field_name, field_obj in ordered_field_attrs:
-            # give a default api_name
-            if not field_obj.api_name:
-                field_obj.api_name = field_name
+            # give a default xml_attribute
+            if not field_obj.xml_attribute:
+                field_obj.xml_attribute = field_name
             field_obj.name = field_name
 
+            #only one key field allowed
+            if field_obj.is_key:
+                if attrs.get("_key_field") is None:
+                    attrs["_key_field"] = field_name
+                else:
+                    raise InvalidEntityError("Multiple key fields defined for: %s" % name)
+
             fields[field_name] = field_obj
-            field_name_to_api_name[field_name] = field_obj.api_name
-            api_name_to_field_name[field_obj.api_name] = field_name
-            api_fields_counter.update([field_obj.api_name])
+            field_name_to_xml_attribute[field_name] = field_obj.xml_attribute
+            xml_attribute_to_field_name[field_obj.xml_attribute] = field_name
+            api_fields_counter.update([field_obj.xml_attribute])
 
-            if api_fields_counter[field_obj.api_name] > 1:
-                raise InvalidEntityError("Multiple api_names defined for: %s" % field_obj.api_name)
-
-
+            if api_fields_counter[field_obj.xml_attribute] > 1:
+                raise InvalidEntityError("Multiple xml_attributes defined for: %s" % field_obj.xml_attribute)
 
         attrs.update({"_fields": fields,
-                      "_api_names": field_name_to_api_name,
-                      "_field_names": api_name_to_field_name})
+                      "_xml_attributes": field_name_to_xml_attribute,
+                      "_field_names": xml_attribute_to_field_name})
+
 
         entity_class = super(EntityMetaClass, cls).__new__(cls, name, bases, attrs)
         BaseField.creation_counter = 0
@@ -152,21 +142,20 @@ class EntityMetaClass(type):
 
 
 class Entity(object):
+    """
+    The Entity is to be used as a base class for deriving your own entities.
+    """
     __metaclass__ = EntityMetaClass
-
-    xml_tag = None
-    api_method = None
 
     def __init__(self, *args, **kwargs):
         """
         Constructor applies argument values to fields (or defaults if applicable)
-        :param args:
-        :param kwargs:
+        :param args: initial values for fields in order of field position in the class
+        :param kwargs: named field arguments
         :return:
         """
         # internal field data storage
         self._data = {}
-
 
         if args:
             # Combine positional arguments with named arguments. We only want named arguments.
@@ -186,8 +175,8 @@ class Entity(object):
             setattr(self, field_name, value)
 
     def validate(self):
-        """Ensure that all fields' values are valid and that required fields
-        are present.
+        """
+        Ensure that all fields' values are valid and that required fields are present.
         """
         errors = {}
         for field_name, field_obj in self._fields.items():
@@ -203,3 +192,11 @@ class Entity(object):
                 errors[field_obj.name] = ValidationError('Field is required', field_name=field_obj.name)
         if errors:
             raise ValidationError('ValidationError', errors=errors)
+
+
+
+
+
+
+
+

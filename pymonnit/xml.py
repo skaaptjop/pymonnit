@@ -2,7 +2,6 @@ from lxml import etree
 
 #return self.xml_etree.xpath("/SensorRestAPI/Result[1]/text()='Success'")
 
-import mongoengine
 
 
 
