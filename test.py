@@ -1,19 +1,31 @@
 import pymonnit
 
 
-class MyEntity1(pymonnit.Entity):
-    field_1_1 = pymonnit.BaseField("1_1_api_field", key=True)
-    field_1_2 = pymonnit.BaseField("1_2_api_field", default=12, key=True)
+class MyEntity1(pymonnit.BaseEntity):
+    id = pymonnit.IntField(xml_attribute="1_1_api_field")
+    field_1_2 = pymonnit.IntField(xml_attribute="1_2_api_field", default=12)
     strfield = pymonnit.StringField(xml_attribute="apistrfield", min_length=3, default="pss")
 
-    meta = {"xml_tag": "thetagytag"}
+
+class MyEntity2(pymonnit.BaseEntity):
+    id = pymonnit.IntField(xml_attribute="apiid")
+    ref = pymonnit.ReferenceField(MyEntity1, xml_attribute="refid")
 
 
 e1 = MyEntity1(11)
 #e1.strfield="do"
 e1.validate()
 
+e2 = MyEntity2(100, e1)
+e2.validate()
+
+e2.ref.strfield = "woooooot"
+print e1.strfield
+
+print e2.ref is e1
+
 i=1
+
 
 #
 # username = "guest"

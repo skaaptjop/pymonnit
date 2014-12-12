@@ -1,8 +1,8 @@
-from .base import Entity
-from .fields import StringField, IntField, IDField
+from .base import BaseEntity
+from .fields import StringField, IntField
 
-class Network(Entity):
+class Network(BaseEntity):
     xml_tag = "APINetwork"
-    id = IDField(xml_attribute="NetworkID")
+    id = IntField(xml_attribute="NetworkID")
 
     name = StringField(xml_attribute="NetworkName")

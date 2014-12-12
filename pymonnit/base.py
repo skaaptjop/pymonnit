@@ -27,7 +27,7 @@ class BaseField(object):
         self._default = default
         self.required = required
         self._custom_validation = validation
-        self.is_key = key
+        self.key = key
 
         self.creation_counter = BaseField.creation_counter
         BaseField.creation_counter += 1
@@ -89,14 +89,14 @@ class EntityMetaClass(type):
 
     def __new__(cls, name, bases, attrs):
         """
-        Meta Class creator that finds all the BaseField descripters and adds them to
+        Meta Class creator that finds all the BaseField descriptors and adds them to
         various _field dictionaries
         :param name: name of the class being created
         :param bases: tuple of base classes for the class being created
         :param attrs: attributes of the class being created
         """
         # If this is the Entity base class then just call super
-        if name == "Entity":
+        if name == "BaseEntity":
             return super(EntityMetaClass, cls).__new__(cls, name, bases, attrs)
 
         fields = OrderedDict()
@@ -104,24 +104,15 @@ class EntityMetaClass(type):
         xml_attribute_to_field_name = {}
         api_fields_counter = Counter()
 
-        #we need to sort the attrs that are BaseField derived by creation counter
-        field_attrs = filter(lambda attr_item: isinstance(attr_item[1], BaseField), attrs.iteritems())
+        # we need to sort the attrs that are BaseField derived by creation counter
+        field_attrs = filter(lambda attr_item: isinstance(attr_item[1], BaseField), attrs.items())
         ordered_field_attrs = sorted((fo.creation_counter, fn, fo) for fn, fo in field_attrs)
-
-        attrs["_key_field"] = None
 
         for _, field_name, field_obj in ordered_field_attrs:
             # give a default xml_attribute
             if not field_obj.xml_attribute:
                 field_obj.xml_attribute = field_name
             field_obj.name = field_name
-
-            #only one key field allowed
-            if field_obj.is_key:
-                if attrs.get("_key_field") is None:
-                    attrs["_key_field"] = field_name
-                else:
-                    raise InvalidEntityError("Multiple key fields defined for: %s" % name)
 
             fields[field_name] = field_obj
             field_name_to_xml_attribute[field_name] = field_obj.xml_attribute
@@ -131,17 +122,21 @@ class EntityMetaClass(type):
             if api_fields_counter[field_obj.xml_attribute] > 1:
                 raise InvalidEntityError("Multiple xml_attributes defined for: %s" % field_obj.xml_attribute)
 
+        if not attrs.has_key("id"):
+            raise InvalidEntityError("No 'id' field defined for: %s" % name)
+
+
         attrs.update({"_fields": fields,
                       "_xml_attributes": field_name_to_xml_attribute,
                       "_field_names": xml_attribute_to_field_name})
 
-
         entity_class = super(EntityMetaClass, cls).__new__(cls, name, bases, attrs)
+        # TODO: is it safe to reset this counter?
         BaseField.creation_counter = 0
         return entity_class
 
 
-class Entity(object):
+class BaseEntity(object):
     """
     The Entity is to be used as a base class for deriving your own entities.
     """
@@ -159,9 +154,9 @@ class Entity(object):
 
         if args:
             # Combine positional arguments with named arguments. We only want named arguments.
-            field = iter(self._fields.keys())
+            field_iter = iter(self._fields.items())
             for value in args:
-                field_name = next(field)
+                field_name, field_obj = next(field_iter)
                 if field_name in kwargs:
                     raise TypeError("Multiple values for keyword argument '" + field_name + "'")
                 kwargs[field_name] = value
@@ -171,8 +166,10 @@ class Entity(object):
             if field_name in kwargs:
                 value = kwargs[field_name]
             else:
-                value = None    #default will be applied if applicable
+                value = None    # default will be applied if applicable
             setattr(self, field_name, value)
+
+
 
     def validate(self):
         """
@@ -192,7 +189,6 @@ class Entity(object):
                 errors[field_obj.name] = ValidationError('Field is required', field_name=field_obj.name)
         if errors:
             raise ValidationError('ValidationError', errors=errors)
-
 
 
 

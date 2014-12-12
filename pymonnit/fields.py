@@ -1,5 +1,6 @@
 import re
-from .base import BaseField
+from .base import BaseField, BaseEntity
+
 
 
 class StringField(BaseField):
@@ -45,6 +46,16 @@ class IntField(BaseField):
         super(IntField, self).validate(value)
 
 
-class IDField(IntField):
-    def __init__(self, **kwargs):
-        super(IDField, self).__init__(min_value=0, required=False, **kwargs)
+class ReferenceField(BaseField):
+    def __init__(self, entity_class, **kwargs):
+        self.entity_class = entity_class
+        super(ReferenceField, self).__init__(**kwargs)
+
+    def validate(self, value):
+        if not isinstance(value, self.entity_class) and not isinstance(value, BaseEntity):
+            self.error("Incorrect type")
+        if value.id is None:
+            self.error('You can only reference entities once they have been '
+                       'saved to the database')
+
+
