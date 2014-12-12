@@ -24,6 +24,10 @@ class ResultSet(object):
     def __iter__(self):
         return iter(self._results)
 
+    def __add__(self, other):
+        r = self._results + other._results
+        return ResultSet(r)
+
     def first(self):
         try:
             result = self._results[0]
@@ -61,6 +65,8 @@ from . import entity
 rs = from_xml(xml, entity.Network)
 
 print is_success(xml)
+
+rs += rs
 
 for r in rs:
     print r

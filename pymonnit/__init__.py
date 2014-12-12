@@ -9,3 +9,4 @@ from .xml import Result
 from .fields import *
 from .entity import *
 from .resultset import *
+from .query import *

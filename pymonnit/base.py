@@ -113,6 +113,11 @@ class EntityMetaClass(type):
         if name == "BaseEntity":
             return super(EntityMetaClass, cls).__new__(cls, name, bases, attrs)
 
+        # merge in fields from base classes
+        for base in (base for base in bases if issubclass(base, BaseEntity) and base.__name__ != "BaseEntity"):
+            fields = base.meta.fields
+            attrs.update(fields)
+
         fields = OrderedDict()
         field_name_to_xml_attribute = {}
         xml_attribute_to_field_name = {}
