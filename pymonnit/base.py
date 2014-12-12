@@ -51,7 +51,7 @@ class BaseField(object):
             # Document class being used rather than a document object
             return self
 
-        return instance._data.get(self.name)
+        return instance.meta.data.get(self.name)
 
     def __set__(self, instance, value):
         """
@@ -59,7 +59,13 @@ class BaseField(object):
         Default is applied if set to None
         """
         if instance is not None:
-            instance._data[self.name] = value if value is not None else self.default
+            instance.meta.data[self.name] = value if value is not None else self.default
+
+    def to_python(self, value):
+        return value
+
+    def to_query_param(self, value):
+        return value
 
     def error(self, message="", errors=None, field_name=None):
         """Raises a ValidationError.
@@ -80,6 +86,14 @@ class BaseField(object):
                     self.error('Value does not match custom validation method')
             else:
                 raise ValueError('validation argument for "%s" must be a callable.' % self.name)
+
+
+class EntityMeta(object):
+    def __init__(self):
+        self.data = {}
+        self.fields = OrderedDict()
+        self.xml_attribute_map = {}
+        self.field_name_map = {}
 
 
 class EntityMetaClass(type):
@@ -125,10 +139,12 @@ class EntityMetaClass(type):
         if not attrs.has_key("id"):
             raise InvalidEntityError("No 'id' field defined for: %s" % name)
 
+        meta = EntityMeta()
+        meta.fields = fields
+        meta.xml_attribute_map = field_name_to_xml_attribute
+        meta.field_name_map = field_name_to_xml_attribute
 
-        attrs.update({"_fields": fields,
-                      "_xml_attributes": field_name_to_xml_attribute,
-                      "_field_names": xml_attribute_to_field_name})
+        attrs["meta"] = meta
 
         entity_class = super(EntityMetaClass, cls).__new__(cls, name, bases, attrs)
         # TODO: is it safe to reset this counter?
@@ -136,11 +152,13 @@ class EntityMetaClass(type):
         return entity_class
 
 
+
 class BaseEntity(object):
     """
     The Entity is to be used as a base class for deriving your own entities.
     """
     __metaclass__ = EntityMetaClass
+    xml_tag = None
 
     def __init__(self, *args, **kwargs):
         """
@@ -149,12 +167,12 @@ class BaseEntity(object):
         :param kwargs: named field arguments
         :return:
         """
-        # internal field data storage
-        self._data = {}
+        # need instance storage
+        self.meta.data = {}
 
         if args:
             # Combine positional arguments with named arguments. We only want named arguments.
-            field_iter = iter(self._fields.items())
+            field_iter = iter(self.meta.fields.items())
             for value in args:
                 field_name, field_obj = next(field_iter)
                 if field_name in kwargs:
@@ -162,7 +180,7 @@ class BaseEntity(object):
                 kwargs[field_name] = value
 
         # set field values to value in arguments or to the default
-        for field_name in self._fields:
+        for field_name in self.meta.fields:
             if field_name in kwargs:
                 value = kwargs[field_name]
             else:
@@ -176,7 +194,7 @@ class BaseEntity(object):
         Ensure that all fields' values are valid and that required fields are present.
         """
         errors = {}
-        for field_name, field_obj in self._fields.items():
+        for field_name, field_obj in self.meta.fields.items():
             field_value = getattr(self, field_name)
             if field_value is not None:
                 try:
@@ -189,6 +207,17 @@ class BaseEntity(object):
                 errors[field_obj.name] = ValidationError('Field is required', field_name=field_obj.name)
         if errors:
             raise ValidationError('ValidationError', errors=errors)
+
+
+    @classmethod
+    def from_xml(cls, xml_element):
+        obj = cls()
+        for field_name, field in cls.meta.fields.items():
+            xml_attr = cls.meta.xml_attribute_map[field_name]
+            obj.meta.data[field_name] = field.to_python(xml_element.get(xml_attr))
+
+        return obj
+
 
 
 

@@ -1,6 +1,5 @@
 import pymonnit
 
-
 class MyEntity1(pymonnit.BaseEntity):
     id = pymonnit.IntField(xml_attribute="1_1_api_field")
     field_1_2 = pymonnit.IntField(xml_attribute="1_2_api_field", default=12)
@@ -22,7 +21,6 @@ e2.validate()
 e2.ref.strfield = "woooooot"
 print e1.strfield
 
-print e2.ref is e1
 
 i=1
 

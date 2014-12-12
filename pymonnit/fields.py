@@ -25,6 +25,15 @@ class StringField(BaseField):
 
         super(StringField, self).validate(value)
 
+    def to_python(self, value):
+        if isinstance(value, unicode):
+            return value
+        try:
+            value = value.decode('utf-8')
+        except:
+            pass
+        return value
+
 
 class IntField(BaseField):
     def __init__(self, min_value=None, max_value=None, **kwargs):
@@ -44,6 +53,13 @@ class IntField(BaseField):
             self.error('Integer value is too large')
 
         super(IntField, self).validate(value)
+
+    def to_python(self, value):
+        try:
+            value = int(value)
+        except ValueError:
+            pass   # will fail on validation
+        return value
 
 
 class ReferenceField(BaseField):
