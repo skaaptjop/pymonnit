@@ -3,6 +3,7 @@ from datetime import datetime
 import requests
 
 from .auth import MonnitAuth
+from .query import get_query
 
 DEFAULT_HOST = "https://www.imonnit.com/"
 
@@ -53,7 +54,7 @@ class MonnitProxy(object):
             response = requests.get(self._build_method_url(method), params=params)
         else:
             response = requests.get(self._build_method_url(method), params=params, auth=self._monnit_auth)
-        return response
+        return response.content
 
     def logon(self):
         """
@@ -66,7 +67,8 @@ class MonnitProxy(object):
 
 
 
-    def query(self, query):
-        pass
+    def query(self, entity_class):
+        q = get_query(entity_class, self)
+        return q
 
 

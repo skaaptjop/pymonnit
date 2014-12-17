@@ -1,29 +1,34 @@
 import pymonnit
 
-class MyEntity1(pymonnit.BaseEntity):
-    id = pymonnit.IntField(xml_attribute="1_1_api_field")
-    field_1_2 = pymonnit.IntField(xml_attribute="1_2_api_field", default=12)
-    strfield = pymonnit.StringField(xml_attribute="apistrfield", min_length=3, default="pss")
+proxy = pymonnit.MonnitProxy("guest", "guest2014")
+
+# r = proxy.query(pymonnit.Network).find()
+#
+# for i in r:
+#     print i.id, i.name
+
+# r = proxy.query(pymonnit.Network).get(2116)
+# print r.id, r.name
 
 
-class MyEntity2(pymonnit.BaseEntity):
-    id = pymonnit.IntField(xml_attribute="apiid")
-    ref = pymonnit.ReferenceField(MyEntity1, xml_attribute="refid")
+# r = proxy.query(pymonnit.Sensor).get(39745)
+# print r.id, r.name, r.network.id, r.network.name
+#
+# rs = proxy.query(pymonnit.Sensor).find(network=2116)
+# for r in rs:
+#     print r.id, r.name, r.network.id, r.network.name
+#
+# rs = proxy.query(pymonnit.Sensor).find(name = "CO")
+# for r in rs:
+#     print r.id, r.name, r.network.id, r.network.name
+# i = 1
 
+r = proxy.query(pymonnit.Gateway).get(5039)
+print r.id, r.name, r.network.id, r.network.name
 
-e1 = MyEntity1(11)
-#e1.strfield="do"
-e1.validate()
-
-e2 = MyEntity2(100, e1)
-e2.validate()
-
-e2.ref.strfield = "woooooot"
-print e1.strfield
-
-
-i=1
-
+rs = proxy.query(pymonnit.Gateway).find()
+for r in rs:
+    print r.id, r.name, r.network.id, r.network.name
 
 #
 # username = "guest"

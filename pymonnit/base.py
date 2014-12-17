@@ -1,4 +1,3 @@
-from collections import OrderedDict, Counter
 from .exceptions import InvalidEntityError, ValidationError
 
 
@@ -9,28 +8,25 @@ class BaseField(object):
     """
 
     # These track each time a Field instance is created. Used to retain order for
-    # initialisation of entities by args
-    creation_counter = 0
-
     #name of the field that this descripter gets assigned to
     name = None
 
-    def __init__(self, xml_attribute=None, default=None, validation=None, required=False, key=False):
+    def __init__(self, xml_attribute=None, query_param = None, default=None, validation=None, required=False, key=False):
         """
         Constructor
         :param xml_attribute: (optional) name of the API field in the XML structure
+        :param query_param: (optional) name of the API query parameter used in HTTP requests
         :param default: default value (may be callable)
         :param validation: custom validation
         :param key: is this the remote identifier
         """
         self.xml_attribute = xml_attribute
+        self.query_param = query_param
         self._default = default
         self.required = required
         self._custom_validation = validation
         self.key = key
 
-        self.creation_counter = BaseField.creation_counter
-        BaseField.creation_counter += 1
 
     @property
     def default(self):
@@ -51,7 +47,7 @@ class BaseField(object):
             # Document class being used rather than a document object
             return self
 
-        return instance.meta.data.get(self.name)
+        return instance._data.get(self.name)
 
     def __set__(self, instance, value):
         """
@@ -59,12 +55,9 @@ class BaseField(object):
         Default is applied if set to None
         """
         if instance is not None:
-            instance.meta.data[self.name] = value if value is not None else self.default
+            instance._data[self.name] = value if value is not None else self.default
 
     def to_python(self, value):
-        return value
-
-    def to_query_param(self, value):
         return value
 
     def error(self, message="", errors=None, field_name=None):
@@ -88,13 +81,6 @@ class BaseField(object):
                 raise ValueError('validation argument for "%s" must be a callable.' % self.name)
 
 
-class EntityMeta(object):
-    def __init__(self):
-        self.data = {}
-        self.fields = OrderedDict()
-        self.xml_attribute_map = {}
-        self.field_name_map = {}
-
 
 class EntityMetaClass(type):
     """
@@ -115,45 +101,42 @@ class EntityMetaClass(type):
 
         # merge in fields from base classes
         for base in (base for base in bases if issubclass(base, BaseEntity) and base.__name__ != "BaseEntity"):
-            fields = base.meta.fields
+            fields = base.meta["fields"]
             attrs.update(fields)
 
-        fields = OrderedDict()
+        fields = {}
         field_name_to_xml_attribute = {}
+        field_name_to_query_param = {}
+        queryable_fields = set()
         xml_attribute_to_field_name = {}
-        api_fields_counter = Counter()
 
         # we need to sort the attrs that are BaseField derived by creation counter
         field_attrs = filter(lambda attr_item: isinstance(attr_item[1], BaseField), attrs.items())
-        ordered_field_attrs = sorted((fo.creation_counter, fn, fo) for fn, fo in field_attrs)
 
-        for _, field_name, field_obj in ordered_field_attrs:
+        for field_name, field_obj in field_attrs:
             # give a default xml_attribute
             if not field_obj.xml_attribute:
                 field_obj.xml_attribute = field_name
             field_obj.name = field_name
 
             fields[field_name] = field_obj
-            field_name_to_xml_attribute[field_name] = field_obj.xml_attribute
-            xml_attribute_to_field_name[field_obj.xml_attribute] = field_name
-            api_fields_counter.update([field_obj.xml_attribute])
-
-            if api_fields_counter[field_obj.xml_attribute] > 1:
-                raise InvalidEntityError("Multiple xml_attributes defined for: %s" % field_obj.xml_attribute)
+            if field_obj.xml_attribute:
+                field_name_to_xml_attribute[field_name] = field_obj.xml_attribute
+                xml_attribute_to_field_name[field_obj.xml_attribute] = field_name
+            if field_obj.query_param:
+                field_name_to_query_param[field_name] = field_obj.query_param
+                queryable_fields.add(field_name)
 
         if not attrs.has_key("id"):
             raise InvalidEntityError("No 'id' field defined for: %s" % name)
 
-        meta = EntityMeta()
-        meta.fields = fields
-        meta.xml_attribute_map = field_name_to_xml_attribute
-        meta.field_name_map = field_name_to_xml_attribute
-
-        attrs["meta"] = meta
+        attrs["meta"] = {'fields': fields,
+                         'xml_attribute_to_field_name': xml_attribute_to_field_name,
+                         'field_name_to_query_param': field_name_to_query_param,
+                         'queryable_fields': queryable_fields,
+                         'field_name_to_xml_attribute': field_name_to_xml_attribute}
 
         entity_class = super(EntityMetaClass, cls).__new__(cls, name, bases, attrs)
-        # TODO: is it safe to reset this counter?
-        BaseField.creation_counter = 0
         return entity_class
 
 
@@ -165,27 +148,17 @@ class BaseEntity(object):
     __metaclass__ = EntityMetaClass
     xml_tag = None
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         """
         Constructor applies argument values to fields (or defaults if applicable)
-        :param args: initial values for fields in order of field position in the class
         :param kwargs: named field arguments
         :return:
         """
-        # need instance storage
-        self.meta.data = {}
-
-        if args:
-            # Combine positional arguments with named arguments. We only want named arguments.
-            field_iter = iter(self.meta.fields.items())
-            for value in args:
-                field_name, field_obj = next(field_iter)
-                if field_name in kwargs:
-                    raise TypeError("Multiple values for keyword argument '" + field_name + "'")
-                kwargs[field_name] = value
+        # need instance storage for data
+        self._data = {}
 
         # set field values to value in arguments or to the default
-        for field_name in self.meta.fields:
+        for field_name in self.meta["fields"]:
             if field_name in kwargs:
                 value = kwargs[field_name]
             else:
@@ -199,7 +172,7 @@ class BaseEntity(object):
         Ensure that all fields' values are valid and that required fields are present.
         """
         errors = {}
-        for field_name, field_obj in self.meta.fields.items():
+        for field_name, field_obj in self.meta["fields"].items():
             field_value = getattr(self, field_name)
             if field_value is not None:
                 try:
@@ -217,14 +190,15 @@ class BaseEntity(object):
     @classmethod
     def from_xml(cls, xml_element):
         obj = cls()
-        for field_name, field in cls.meta.fields.items():
-            xml_attr = cls.meta.xml_attribute_map[field_name]
-            obj.meta.data[field_name] = field.to_python(xml_element.get(xml_attr))
-
+        for field_name, field in cls.meta["fields"].items():
+            xml_attr = cls.meta["field_name_to_xml_attribute"].get(field_name)
+            if xml_attr:
+                obj._data[field_name] = field.to_python(xml_element.get(xml_attr))
         return obj
 
-
-
+    @classmethod
+    def get_xml_attribute(cls, field_name):
+        return cls.meta["field_name_to_xml_attribute"].get(field_name)
 
 
 

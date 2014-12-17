@@ -71,7 +71,12 @@ class ReferenceField(BaseField):
         if not isinstance(value, self.entity_class) and not isinstance(value, BaseEntity):
             self.error("Incorrect type")
         if value.id is None:
-            self.error('You can only reference entities once they have been '
-                       'saved to the database')
+            self.error('You can only reference entities with an id')
 
+    def to_python(self, value):
+        try:
+            value = int(value)
+        except ValueError:
+            pass   # will fail on validation
+        return value
 

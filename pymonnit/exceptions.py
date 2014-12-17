@@ -8,6 +8,10 @@ class InvalidEntityError(Exception):
     pass
 
 
+class QueryError(Exception):
+    pass
+
+
 class ValidationError(AssertionError):
     """Validation exception.
 

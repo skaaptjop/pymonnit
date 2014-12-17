@@ -1,4 +1,5 @@
-from lxml import etree
+#from lxml import etree
+import xml.etree.ElementTree as ET
 
 # import inspect
 # def entity_finder(e):
@@ -19,14 +20,17 @@ class ResultSet(object):
         return len(self._results)
 
     def __contains__(self, item):
-        return item in (r.id for r in self._results)
+        if isinstance(item, int):
+            item_ = item
+        else:
+            item_ = item.id
+        return item_ in (r.id for r in self._results)
 
     def __iter__(self):
         return iter(self._results)
 
-    def __add__(self, other):
-        r = self._results + other._results
-        return ResultSet(r)
+    def all(self):
+        return list(self._results)
 
     def first(self):
         try:
@@ -36,9 +40,13 @@ class ResultSet(object):
         return result
 
 
-def from_xml(xml_string, entity_class = None):
-    xml = etree.fromstring(xml_string).find("Result")
-    results = map(entity_class.from_xml, xml.iterfind((".//" + entity_class.xml_tag)))
+def from_xml(entity_class, xml_string):
+    xml_root = ET.fromstring(xml_string).find("Result")
+    results = []
+    for i in xml_root.iterfind((".//" + entity_class.xml_tag)):
+        e = entity_class.from_xml(i)
+        results.append(e)
+    # results = map(entity_class.from_xml, xml_root.iterfind((".//" + entity_class.xml_tag)))
     return ResultSet(results)
 
 
@@ -46,30 +54,37 @@ def is_success(xml_string):
     """
     Does the XML simply contain  <Result>Success</Result>?
     """
-    return etree.fromstring(xml_string).text == "Success"
+    return ET.fromstring(xml_string).find("Result").text == "Success"
 
 
 
-xml = """<?xml version="1.0" encoding="utf-8"?>
-<SensorRestAPI xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
-  <Method>NetworkList</Method>
-  <Result xsi:type="xsd:collection">
-    <APINetworkList>
-      <APINetwork NetworkID="100" NetworkName="OfficeNetwork" SendNotifications="False" />
-      <APINetwork NetworkID="300" NetworkName="Warehouse" SendNofitications="True" />
-    </APINetworkList>
-  </Result>
-</SensorRestAPI>"""
-
-from . import entity
-rs = from_xml(xml, entity.Network)
-
-print is_success(xml)
-
-rs += rs
-
-for r in rs:
-    print r
-
-print 300 in rs
-i = 1
+# xml = """<?xml version="1.0" encoding="utf-8"?>
+# <SensorRestAPI xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+#   <Method>NetworkList</Method>
+#   <Result xsi:type="xsd:collection">
+#     <APINetworkList>
+#       <APINetwork NetworkID="100" NetworkName="OfficeNetwork" SendNotifications="False" />
+#       <APINetwork NetworkID="300" NetworkName="Warehouse" SendNofitications="True" />
+#     </APINetworkList>
+#   </Result>
+# </SensorRestAPI>"""
+#
+# rs = from_xml(MyNetwork, xml)
+#
+# xml = """<?xml version="1.0" encoding="utf-8"?>
+# <SensorRestAPI xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+#   <Method>NetworkList</Method>
+#   <Result xsi:type="xsd:collection">Success</Result></SensorRestAPI>
+#   """
+#
+#
+# print is_success(xml)
+#
+#
+# for r in rs:
+#     print r
+#
+# a = rs.all()
+#
+# print 300 in rs
+# i = 1
