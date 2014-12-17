@@ -1,5 +1,4 @@
 from posixpath import join
-from datetime import datetime
 import requests
 
 from .auth import MonnitAuth
@@ -9,7 +8,7 @@ DEFAULT_HOST = "https://www.imonnit.com/"
 
 
 
-class MonnitProxy(object):
+class MonnitClient(object):
     """
     iMonnit class for working with remote API calls
     """

@@ -72,6 +72,9 @@ class Query(object):
         return http_params
 
     def _derefence_network(self, result_set):
+        """
+        Populate entities with network entities for reference fields
+        """
         network_cache = {}
         for entity in result_set:
             network_id = entity.network

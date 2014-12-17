@@ -14,6 +14,8 @@ class Sensor(BaseEntity):
     id = IntField(xml_attribute="SensorID", query_param="sensorID")
     network = ReferenceField(Network, xml_attribute="CSNetID", query_param="NetworkID")
     name = StringField(xml_attribute="SensorName", query_param="Name")
+    signal = IntField(xml_attribute="SignalStrength")
+    battery = IntField(xml_attribute="BatteryLevel")
 
 
 class Gateway(BaseEntity):
