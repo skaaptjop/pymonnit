@@ -1,5 +1,5 @@
 from .base import BaseEntity
-from .fields import StringField, IntField, ReferenceField
+from .fields import StringField, IntField, ReferenceField, UTCDateTimeField
 
 
 
@@ -29,3 +29,4 @@ class Gateway(BaseEntity):
     network = ReferenceField(Network, xml_attribute="NetworkID", query_param="NetworkID")
     name = StringField(xml_attribute="Name", query_param="Name")
     type = StringField(xml_attribute="GatewayType")
+    last = UTCDateTimeField(xml_attribute="LastCommunicationDate")

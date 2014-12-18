@@ -16,19 +16,19 @@ proxy = pymonnit.MonnitClient("guest", "guest2014")
 #
 rs = proxy.query(pymonnit.Sensor).find(network=2116)
 for r in rs:
-    print r.id, r.name, r.network.id, r.network.name, r.signal, r.battery
+    print r
 
 # rs = proxy.query(pymonnit.Sensor).find(name = "CO")
 # for r in rs:
 #     print r.id, r.name, r.network.id, r.network.name
 # i = 1
 
-r = proxy.query(pymonnit.Gateway).get(5039)
-print r.id, r.name, r.network.id, r.network.name
+# r = proxy.query(pymonnit.Gateway).get(5039)
+# print r.id, r.name, r.network.id, r.network.name
 
 rs = proxy.query(pymonnit.Gateway).find()
 for r in rs:
-    print r.id, r.name, r.network.id, r.network.name
+    print r
 
 #
 # username = "guest"

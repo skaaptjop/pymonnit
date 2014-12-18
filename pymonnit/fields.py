@@ -1,5 +1,7 @@
 import re
-from .base import BaseField, BaseEntity
+from datetime import datetime
+from .base_field import BaseField
+from .base import BaseEntity
 
 
 
@@ -32,7 +34,7 @@ class StringField(BaseField):
             value = value.decode('utf-8')
         except:
             pass
-        return value
+        return value.strip()
 
 
 class IntField(BaseField):
@@ -79,4 +81,18 @@ class ReferenceField(BaseField):
         except ValueError:
             pass   # will fail on validation
         return value
+
+
+
+class UTCDateTimeField(BaseField):
+    def __init__(self, datetime_format = '%m/%d/%Y %H:%M:%S %p', **kwargs):
+        self.datetime_format = datetime_format
+        super(UTCDateTimeField, self).__init__(**kwargs)
+
+
+    def to_python(self, value):
+        value = datetime.strptime(value, self.datetime_format)
+        return value
+
+
 

@@ -63,7 +63,7 @@ class Query(object):
         :param entity: Entity class
         :param query_args: field name - values to filter
         If a query arg (field name) is supplied that does not have a configured 'query_param' attribute associated
-        with the field descripter then a QueryError is raised.
+        with the field descriptor then a QueryError is raised.
         """
         self._check_query_filter(entity, **query_args)
         http_params = {}
